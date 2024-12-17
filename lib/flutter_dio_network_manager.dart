@@ -1,7 +1,6 @@
 library flutter_dio_network_manager;
 
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import 'package:connectivity/connectivity.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 
@@ -15,17 +14,6 @@ abstract class BaseClientGenerator {
   Map<String, dynamic>? get header => {};
   int? get sendTimeout => 30000;
   int? get receiveTimeOut => 30000;
-}
-
-class NetworkConnectivity {
-  static Future<bool> get status async {
-    var connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult == ConnectivityResult.none) {
-      return false;
-    } else {
-      return true;
-    }
-  }
 }
 
 class NetworkCreator {
@@ -64,29 +52,29 @@ class NetworkExecuter {
       void Function(bool)? isLoading,
       void Function()? onNotAuth,
       required void Function(Map<dynamic, dynamic>?) callback}) async {
-    // Check Network Connectivity
-    if (await NetworkConnectivity.status) {
-      try {
-        isLoading != null ? isLoading(true) : null;
-        var response = await NetworkCreator.shared.request(route: route);
-        isLoading != null ? isLoading(false) : null;
-        callback(response.data);
-        // NETWORK ERROR
-      } on DioException catch (error) {
-        isLoading != null ? isLoading(false) : null;
+    try {
+      isLoading != null ? isLoading(true) : null;
+      var response = await NetworkCreator.shared.request(route: route);
+      isLoading != null ? isLoading(false) : null;
+      callback(response.data);
+      // NETWORK ERROR
+    } on DioException catch (error) {
+      isLoading != null ? isLoading(false) : null;
+      if ((error.type == DioExceptionType.connectionError) ||
+          (error.type == DioExceptionType.connectionTimeout)) {
+        onError('No Internet Connection');
+      } else {
         onError(error.response?.data['message'] ??
             error.response?.statusMessage ??
             error.toString());
+
         if (error.response?.statusCode == 401) {
           onNotAuth != null ? onNotAuth() : null;
         }
-      } catch (error) {
-        isLoading != null ? isLoading(false) : null;
-        onError(error.toString());
       }
-      // No Internet Connection
-    } else {
-      onError('No Internet Connection');
+    } catch (error) {
+      isLoading != null ? isLoading(false) : null;
+      onError(error.toString());
     }
   }
 }
