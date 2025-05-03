@@ -9,7 +9,7 @@ abstract class BaseClientGenerator {
   String get path => '';
   String get method => 'GET';
   String get baseURL => '';
-  Map<String, dynamic>? get body => null;
+  dynamic get body => null;
   Map<String, dynamic>? get query => null;
   Map<String, dynamic>? get header => {};
   int? get sendTimeout => 30000;
@@ -30,6 +30,11 @@ class NetworkCreator {
     ));
 
   Future<Response> request({required BaseClientGenerator route}) {
+    final data = route.body;
+    if (data is Map<String, dynamic>) {
+      data.removeWhere((key, value) => value == null);
+    }
+
     return _client.fetch(RequestOptions(
         baseUrl: route.baseURL,
         headers: route.header,
@@ -37,7 +42,7 @@ class NetworkCreator {
         path: route.path,
         queryParameters: route.query
           ?..removeWhere((key, value) => value == null),
-        data: route.body?..removeWhere((key, value) => value == null),
+        data: data,
         sendTimeout: Duration(milliseconds: route.sendTimeout ?? 3000),
         receiveTimeout: Duration(milliseconds: route.receiveTimeOut ?? 3000),
         validateStatus: (statusCode) => (statusCode! >= HttpStatus.ok &&
