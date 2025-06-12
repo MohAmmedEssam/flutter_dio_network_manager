@@ -1,6 +1,5 @@
-import 'package:flutter_dio_network_manager/flutter_dio_network_manager.dart';
 import 'package:dio/dio.dart';
-
+import 'flutter_dio_network_manager.dart';
 
 // Files
 class UploadFile {
