@@ -35,6 +35,9 @@ class NetworkCreator {
       ),
     );
 
+  Dio get client =>
+      _client; // <-- Add this getter to add interceptors from your app
+
   Future<Response> request({required BaseClientGenerator route}) {
     final data = route.body;
     if (data is Map<String, dynamic>) {
@@ -47,16 +50,14 @@ class NetworkCreator {
         headers: route.header,
         method: route.method,
         path: route.path,
-        queryParameters:
-            route.query?..removeWhere((key, value) => value == null),
+        queryParameters: route.query
+          ?..removeWhere((key, value) => value == null),
         data: data,
         sendTimeout: Duration(milliseconds: route.sendTimeout ?? 3000),
         receiveTimeout: Duration(milliseconds: route.receiveTimeOut ?? 3000),
-        validateStatus:
-            (statusCode) =>
-                (statusCode != null &&
-                    statusCode >= HttpStatus.ok &&
-                    statusCode <= HttpStatus.multipleChoices),
+        validateStatus: (statusCode) => (statusCode != null &&
+            statusCode >= HttpStatus.ok &&
+            statusCode <= HttpStatus.multipleChoices),
       ),
     );
   }
