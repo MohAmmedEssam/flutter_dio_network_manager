@@ -2,7 +2,7 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:dio/dio.dart';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 
@@ -23,26 +23,35 @@ abstract class BaseClientGenerator {
 class NetworkCreator {
   static var shared = NetworkCreator();
   final Dio _client = Dio(BaseOptions())
-    ..interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: true,
-        responseHeader: false,
-        error: true,
-        compact: true,
-        maxWidth: 90,
-      ),
+    ..interceptors.addAll(
+      kDebugMode
+          ? [
+              PrettyDioLogger(
+                requestHeader: true,
+                requestBody: true,
+                responseBody: true,
+                responseHeader: false,
+                error: true,
+                compact: true,
+                maxWidth: 90,
+              ),
+            ]
+          : [],
     );
 
   Dio get client =>
       _client; // <-- Add this getter to add interceptors from your app
 
   Future<Response> request({required BaseClientGenerator route}) {
-    final data = route.body;
-    if (data is Map<String, dynamic>) {
-      data.removeWhere((key, value) => value == null);
-    }
+    final rawData = route.body;
+    final data = rawData is Map<String, dynamic>
+        ? (Map<String, dynamic>.from(rawData)
+          ..removeWhere((key, value) => value == null))
+        : rawData;
+    final query = route.query != null
+        ? (Map<String, dynamic>.from(route.query!)
+          ..removeWhere((key, value) => value == null))
+        : null;
 
     return _client.fetch(
       RequestOptions(
@@ -50,8 +59,7 @@ class NetworkCreator {
         headers: route.header,
         method: route.method,
         path: route.path,
-        queryParameters: route.query
-          ?..removeWhere((key, value) => value == null),
+        queryParameters: query,
         data: data,
         sendTimeout: Duration(milliseconds: route.sendTimeout ?? 3000),
         receiveTimeout: Duration(milliseconds: route.receiveTimeOut ?? 3000),
@@ -93,7 +101,11 @@ extension NetworkCreatorDownload on NetworkCreator {
       return await _client.download(
         fullUrl,
         savePath,
-        options: Options(headers: headers),
+        options: Options(
+          headers: headers,
+          sendTimeout: Duration(milliseconds: route.sendTimeout ?? 3000),
+          receiveTimeout: Duration(milliseconds: route.receiveTimeOut ?? 3000),
+        ),
         onReceiveProgress: onProgress,
       );
     }
@@ -119,11 +131,7 @@ class NetworkExecuter {
           (error.type == DioExceptionType.connectionTimeout)) {
         onError('No Internet Connection');
       } else {
-        onError(
-          error.response?.data['message'] ??
-              error.response?.statusMessage ??
-              error.toString(),
-        );
+        onError(_extractErrorMessage(error));
         if (error.response?.statusCode == 401) {
           onNotAuth?.call();
         }
@@ -149,7 +157,7 @@ class NetworkExecuter {
         route: route,
         savePath: savePath,
         onProgress: (received, total) {
-          isLoading?.call(received == total);
+          isLoading?.call(received != total);
         },
       );
       isLoading?.call(false);
@@ -160,11 +168,7 @@ class NetworkExecuter {
           (error.type == DioExceptionType.connectionTimeout)) {
         onError('No Internet Connection');
       } else {
-        onError(
-          error.response?.data['message'] ??
-              error.response?.statusMessage ??
-              error.toString(),
-        );
+        onError(_extractErrorMessage(error));
         if (error.response?.statusCode == 401) {
           onNotAuth?.call();
         }
@@ -176,10 +180,23 @@ class NetworkExecuter {
   }
 }
 
+String _extractErrorMessage(DioException error) {
+  final data = error.response?.data;
+  if (data is Map && data['message'] != null) {
+    return data['message'].toString();
+  }
+  return error.response?.statusMessage ?? error.toString();
+}
+
 Future<String> _getSavePath(String filename) async {
   if (kIsWeb) return filename;
-  final directory =
-      await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
+  Directory directory;
+  try {
+    directory = await getDownloadsDirectory() ??
+        await getApplicationDocumentsDirectory();
+  } catch (_) {
+    directory = await getApplicationDocumentsDirectory();
+  }
   return '${directory.path}/$filename';
 }
 
