@@ -33,10 +33,10 @@ class RequestBuilder extends BaseClientGenerator {
     formDataMap.addAll(body);
 
     if (file.bytes != null) {
-      formDataMap[file.key!] =
+      formDataMap[file.key ?? 'file'] =
           MultipartFile.fromBytes(file.bytes!, filename: file.name);
     } else if (file.path != null) {
-      formDataMap[file.key!] =
+      formDataMap[file.key ?? 'file'] =
           MultipartFile.fromFileSync(file.path!, filename: file.name);
     }
 
@@ -55,10 +55,10 @@ class RequestBuilder extends BaseClientGenerator {
 
     for (var file in files) {
       if (file.bytes != null) {
-        formDataMap[file.key!] =
+        formDataMap[file.key ?? 'file'] =
             MultipartFile.fromBytes(file.bytes!, filename: file.name);
       } else if (file.path != null) {
-        formDataMap[file.key!] =
+        formDataMap[file.key ?? 'file'] =
             MultipartFile.fromFileSync(file.path!, filename: file.name);
       }
     }
